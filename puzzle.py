@@ -4,8 +4,8 @@ if isPython2:
     from Tkinter import *
 else:
     from tkinter import *
-from logic import *
-from random import *
+import game_logic
+import random
 
 SIZE = 500
 GRID_LEN = 4
@@ -32,32 +32,28 @@ KEY_LEFT = "'a'"
 KEY_RIGHT = "'d'"
 
 class GameGrid(Frame):
-    def __init__(self, is_ai_game=False, useSeed = None, showGUI = True):
+    def __init__(self, is_ai_game=False, seed = None, showGUI = True):
+        if seed is None:
+            seed = [ random.choice(game_logic.all_directions) for i in range(17) ]
+        self.game_model = game_logic.GameModel(seed)
+
         self.GUImode = showGUI
         if self.GUImode:
             Frame.__init__(self)
-
-        if useSeed:
-            seed(useSeed)
-
-        if self.GUImode:
             self.grid()
             self.master.title('2048')
             self.master.bind("<Key>", self.key_down)
+            self.master.bind("<Escape>", lambda x: sys.exit())
+            self.master.bind("<Return>", lambda x: sys.exit())
 
-        #self.gamelogic = gamelogic
-        self.commands = {   KEY_UP: up, KEY_DOWN: down, KEY_LEFT: left, KEY_RIGHT: right,
-                            KEY_UP_ALT: up, KEY_DOWN_ALT: down, KEY_LEFT_ALT: left, KEY_RIGHT_ALT: right }
-
+        self.endless_mode = True
         self.grid_cells = []
         if self.GUImode:
             self.init_grid()
-        self.init_matrix()
         if self.GUImode:
             self.update_grid_cells()
 
-        self.endless_mode = is_ai_game # there is no "win" in AI mode
-        
+
         if not is_ai_game:
             self.mainloop()
 
@@ -76,76 +72,45 @@ class GameGrid(Frame):
 
             self.grid_cells.append(grid_row)
 
-    def gen(self):
-        return randint(0, GRID_LEN - 1)
-
-    def init_matrix(self):
-        self.matrix = new_game(GRID_LEN)
-
-        self.matrix=add_two(self.matrix)
-        self.matrix=add_two(self.matrix)
-
     def update_grid_cells(self):
         for i in range(GRID_LEN):
             for j in range(GRID_LEN):
-                new_number = self.matrix[i][j]
-                if new_number == 0:
+                number = self.game_model.mat[i][j]
+                if number == 0:
                     self.grid_cells[i][j].configure(text="", bg=BACKGROUND_COLOR_CELL_EMPTY)
                 else:
-                    self.grid_cells[i][j].configure(text=str(new_number), bg=BACKGROUND_COLOR_DICT[new_number], fg=CELL_COLOR_DICT[new_number])
+                    self.grid_cells[i][j].configure(text=str(number), bg=BACKGROUND_COLOR_DICT[number], fg=CELL_COLOR_DICT[number])
         self.update_idletasks()
-        
+
     def key_down(self, event):
-        key = repr(event.char)
-        if key in self.commands:
-            self.matrix,done = self.commands[repr(event.char)](self.matrix)
-            if done:
-                self.matrix = add_two(self.matrix)
-                self.update_grid_cells()
-                done=False
-                if game_state(self.matrix, self.endless_mode) == 'win':
-                    self.grid_cells[1][1].configure(text="You",bg=BACKGROUND_COLOR_CELL_EMPTY)
-                    self.grid_cells[1][2].configure(text="Win!",bg=BACKGROUND_COLOR_CELL_EMPTY)
-                if game_state(self.matrix, self.endless_mode) == 'lose':
-                    self.grid_cells[1][1].configure(text="You",bg=BACKGROUND_COLOR_CELL_EMPTY)
-                    self.grid_cells[1][2].configure(text="Lose!",bg=BACKGROUND_COLOR_CELL_EMPTY)
+        if event.keycode in [38, 87]: self.game_model.do_swipe(game_logic.dir_up)
+        if event.keycode in [40, 83]: self.game_model.do_swipe(game_logic.dir_down)
+        if event.keycode in [37, 65]: self.game_model.do_swipe(game_logic.dir_left)
+        if event.keycode in [39, 68]: self.game_model.do_swipe(game_logic.dir_right)
+        self.update_grid_cells()
 
-    def ai_move (self, direction):
-        if type(direction) == str:
-            if direction.lower() == "up":
-                direction = 1
-            elif direction.lower() == "down":
-                direction = 2
-            elif direction.lower() == "right":
-                direction = 3
-            elif direction.lower() == "left":
-                direction = 4
-        if direction==1:
-            self.matrix,done = self.commands[KEY_UP](self.matrix)
-        elif direction==2:
-            self.matrix,done = self.commands[KEY_DOWN](self.matrix)
-        elif direction==3:
-            self.matrix,done = self.commands[KEY_RIGHT](self.matrix)
-        elif direction==4:
-            self.matrix,done = self.commands[KEY_LEFT](self.matrix)
-        else:
-            done = False
+        if game_logic.game_state(self.game_model.mat, self.endless_mode) == 'win':
+            self.grid_cells[1][1].configure(text="You",bg=BACKGROUND_COLOR_CELL_EMPTY)
+            self.grid_cells[1][2].configure(text="Win!",bg=BACKGROUND_COLOR_CELL_EMPTY)
+        if game_logic.game_state(self.game_model.mat, self.endless_mode) == 'lose':
+            self.grid_cells[1][1].configure(text="You",bg=BACKGROUND_COLOR_CELL_EMPTY)
+            self.grid_cells[1][2].configure(text="Lose!",bg=BACKGROUND_COLOR_CELL_EMPTY)
 
-        if done:
-            self.matrix = add_two(self.matrix)
+    def ai_move(self, direction):
+        mat,changed = self.game_model.do_swipe(direction)
+
+        if self.GUImode:
+            self.update_grid_cells()
+        if game_logic.game_state(self.game_model.mat, self.endless_mode)=='win':
             if self.GUImode:
-                self.update_grid_cells()
-            # done=False
-            if game_state(self.matrix, self.endless_mode)=='win':
-                if self.GUImode:
-                    self.grid_cells[1][1].configure(text="You",bg=BACKGROUND_COLOR_CELL_EMPTY)
-                    self.grid_cells[1][2].configure(text="Win!",bg=BACKGROUND_COLOR_CELL_EMPTY)
-            if game_state(self.matrix, self.endless_mode)=='lose':
-                if self.GUImode:
-                    self.grid_cells[1][1].configure(text="You",bg=BACKGROUND_COLOR_CELL_EMPTY)
-                    self.grid_cells[1][2].configure(text="Lose!",bg=BACKGROUND_COLOR_CELL_EMPTY)
+                self.grid_cells[1][1].configure(text="You",bg=BACKGROUND_COLOR_CELL_EMPTY)
+                self.grid_cells[1][2].configure(text="Win!",bg=BACKGROUND_COLOR_CELL_EMPTY)
+        if game_logic.game_state(self.game_model.mat, self.endless_mode)=='lose':
+            if self.GUImode:
+                self.grid_cells[1][1].configure(text="You",bg=BACKGROUND_COLOR_CELL_EMPTY)
+                self.grid_cells[1][2].configure(text="Lose!",bg=BACKGROUND_COLOR_CELL_EMPTY)
 
-        return done
+        return changed
 
     def calc_score(self):
         """ calculated the score
@@ -155,18 +120,11 @@ class GameGrid(Frame):
         8 -> 27
         ...
         """
-        return score(self.matrix)
-    
+        return game_logic.score(self.game_model.mat)
+
     def game_over(self):
-        if game_state(self.matrix, self.endless_mode)=='not over': return False
+        if game_logic.game_state(self.game_model.mat, self.endless_mode)=='not over': return False
         else: return True
-
-
-    def generate_next(self):
-        index = (self.gen(), self.gen())
-        while self.matrix[index[0]][index[1]] != 0:
-            index = (self.gen(), self.gen())
-        self.matrix[index[0]][index[1]] = 2
 
 if __name__ == '__main__':
     gamegrid = GameGrid()

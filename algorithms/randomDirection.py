@@ -1,14 +1,11 @@
-import logic
+import game_logic
 import random
 
 """
 Naive algorithm that uses any random direction.
 """
 
-def getNextMoves(matrix):
-    """ alrogithm to determine which moves to do next.
+def getNextMove(matrix):
+    """Return one of the dir_ constants from game_logic"""
 
-    return either a list of allowed moves (i.e. either 1,2,3 or 4, or as string "left", "right, "up", "down") or only the next move
-    """
-
-    return random.randint(1,4)
+    return random.choice(game_logic.all_directions)

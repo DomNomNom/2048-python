@@ -1,23 +1,19 @@
-import logic
+import game_logic
 
 """
 Simple example algorithm, that tries to gather cells in bottom right corner.
 """
 
-def getNextMoves(matrix):
-    """ alrogithm to determine which moves to do next.
-
-    return either a list of allowed moves (i.e. either 1,2,3 or 4, or as string "left", "right, "up", "down") or only the next move
-    """
+def getNextMove(matrix):
+    """Return one of the dir_ constants from game_logic"""
 
     #  if possible move to right bottom corner
-    mat, done = logic.right(matrix)
-    if done: return ["RIGHT"]
-    mat, done = logic.down(matrix)
-    if done: return ["DOWN"]
+    mat, changed = game_logic.right(matrix)
+    if changed: return game_logic.dir_right
+    mat, changed = game_logic.down(matrix)
+    if changed: return game_logic.dir_down
 
     #  otherwise try to any other move
-    mat, done = logic.left(matrix)
-    if done: return ["LEFT", "RIGHT"]
-
-    return ["UP", "DOWN"]
+    mat, changed = game_logic.left(matrix)
+    if changed: return game_logic.dir_left
+    return game_logic.dir_up
