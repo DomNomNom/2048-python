@@ -19,6 +19,7 @@ BACKGROUND_COLOR_DICT = {   2:"#eee4da", 4:"#ede0c8", 8:"#f2b179", 16:"#f59563",
 CELL_COLOR_DICT = { 2:"#776e65", 4:"#776e65", 8:"#f9f6f2", 16:"#f9f6f2", \
                     32:"#f9f6f2", 64:"#f9f6f2", 128:"#f9f6f2", 256:"#f9f6f2", \
                     512:"#f9f6f2", 1024:"#f9f6f2", 2048:"#f9f6f2" , 4096:"#f9f6f2", 8192:"#f9f6f2", 16384:"#f9f6f2", 32768:"#f9f6f2", 65536:"#f9f6f2"}
+GAME_OVER_TEXT_COLOR = "#ede0c8"
 FONT = ("Verdana", 40, "bold")
 
 KEY_UP_ALT = "\'\\uf700\'"
@@ -36,30 +37,36 @@ class GameGrid(Frame):
         if seed is None:
             seed = [ random.choice(game_logic.all_directions) for i in range(17) ]
         self.game_model = game_logic.GameModel(seed)
-
         self.GUImode = showGUI
-        if self.GUImode:
-            Frame.__init__(self)
-            self.grid()
-            self.master.title('2048')
-            self.master.bind("<Key>", self.key_down)
-            self.master.bind("<Escape>", lambda x: sys.exit())
-            self.master.bind("<Return>", lambda x: sys.exit())
 
         self.endless_mode = True
         self.grid_cells = []
+
         if self.GUImode:
+            Frame.__init__(self)
+            # for widget in self.master.winfo_children():
+            #     if widget is not self:
+            #         widget.destroy()
+            self.grid(row=0, column=len(self.master.winfo_children()))
+            self.master.title('2048')
+            self.master.bind("<Escape>", lambda x: sys.exit())
+            self.master.bind("<Return>", lambda x: sys.exit())
+            if not is_ai_game:
+                self.master.bind("<Key>", self.key_down)
+
             self.init_grid()
-        if self.GUImode:
-            self.update_grid_cells()
+            self.redraw()
 
 
         if not is_ai_game:
             self.mainloop()
 
     def init_grid(self):
-        background = Frame(self, bg=BACKGROUND_COLOR_GAME, width=SIZE, height=SIZE)
-        background.grid()
+        game_and_score = Frame(self, bg=BACKGROUND_COLOR_GAME, width=SIZE, height=SIZE)
+        game_and_score.grid()
+
+        background = Frame(game_and_score, bg=BACKGROUND_COLOR_GAME, width=SIZE, height=SIZE)
+        background.grid(row=1, column=0)
         for i in range(GRID_LEN):
             grid_row = []
             for j in range(GRID_LEN):
@@ -71,6 +78,13 @@ class GameGrid(Frame):
                 grid_row.append(t)
 
             self.grid_cells.append(grid_row)
+
+        # background2 = Frame(self, bg=BACKGROUND_COLOR_CELL_EMPTY, width=SIZE, height=SIZE)
+        # background2.grid()
+        # self.scoreLabel = Label(master=background2, text="HELLO", bg=BACKGROUND_COLOR_CELL_EMPTY, justify=CENTER, font=FONT, width=SIZE, height=2)
+        # self.scoreLabel.grid(row=1, column=1)
+        self.scoreLabel = Label(master=game_and_score, text="2048", bg=BACKGROUND_COLOR_GAME, fg=GAME_OVER_TEXT_COLOR, justify=CENTER, font=FONT, width=18 , height=2)
+        self.scoreLabel.grid(row=0, column=0)
 
     def update_grid_cells(self):
         for i in range(GRID_LEN):
@@ -87,30 +101,29 @@ class GameGrid(Frame):
         if event.keycode in [40, 83]: self.game_model.do_swipe(game_logic.dir_down)
         if event.keycode in [37, 65]: self.game_model.do_swipe(game_logic.dir_left)
         if event.keycode in [39, 68]: self.game_model.do_swipe(game_logic.dir_right)
-        self.update_grid_cells()
-
-        if game_logic.game_state(self.game_model.mat, self.endless_mode) == 'win':
-            self.grid_cells[1][1].configure(text="You",bg=BACKGROUND_COLOR_CELL_EMPTY)
-            self.grid_cells[1][2].configure(text="Win!",bg=BACKGROUND_COLOR_CELL_EMPTY)
-        if game_logic.game_state(self.game_model.mat, self.endless_mode) == 'lose':
-            self.grid_cells[1][1].configure(text="You",bg=BACKGROUND_COLOR_CELL_EMPTY)
-            self.grid_cells[1][2].configure(text="Lose!",bg=BACKGROUND_COLOR_CELL_EMPTY)
+        self.redraw()
 
     def ai_move(self, direction):
         mat,changed = self.game_model.do_swipe(direction)
 
         if self.GUImode:
-            self.update_grid_cells()
-        if game_logic.game_state(self.game_model.mat, self.endless_mode)=='win':
-            if self.GUImode:
-                self.grid_cells[1][1].configure(text="You",bg=BACKGROUND_COLOR_CELL_EMPTY)
-                self.grid_cells[1][2].configure(text="Win!",bg=BACKGROUND_COLOR_CELL_EMPTY)
-        if game_logic.game_state(self.game_model.mat, self.endless_mode)=='lose':
-            if self.GUImode:
-                self.grid_cells[1][1].configure(text="You",bg=BACKGROUND_COLOR_CELL_EMPTY)
-                self.grid_cells[1][2].configure(text="Lose!",bg=BACKGROUND_COLOR_CELL_EMPTY)
-
+            self.redraw()
         return changed
+
+    def redraw(self):
+
+        self.update_grid_cells()
+
+        status_text = ''
+        if game_logic.game_state(self.game_model.mat, self.endless_mode)=='win':
+            status_text += "You Win!\n"
+        if game_logic.game_state(self.game_model.mat, self.endless_mode)=='lose':
+            status_text += "Game Over.\n"
+        status_text += 'Score: ' + str(self.calc_score())
+        self.scoreLabel.configure(text = status_text)
+
+
+
 
     def calc_score(self):
         """ calculated the score
