@@ -2,7 +2,7 @@
 
 """
 Common run script to apply algorithm to solve 2048 puzzle.
-Algorithms are read from subdirectory algorithms and have to supply a function getNextMove(matrix), which should return a list of next moves.
+Algorithms are read from subdirectory algorithms and have to supply a function get_next_move(matrix), which should return a list of next moves.
 """
 
 import os, sys
@@ -65,7 +65,7 @@ def main(argv):
         NnoMoves = 0
         while not done:
             logging.debug("Getting next move from algorithm")
-            move = alg.getNextMove(gamegrid.game_model.mat)
+            move = alg.get_next_move(gamegrid.game_model.mat)
             changed = gamegrid.ai_move(move)
             if not changed:
                 done = True

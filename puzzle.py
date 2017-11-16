@@ -5,6 +5,7 @@ if isPython2:
 else:
     from tkinter import *
 import game_logic
+from mutable_game_model import GameModel
 import random
 
 SIZE = 500
@@ -32,11 +33,12 @@ KEY_DOWN = "'s'"
 KEY_LEFT = "'a'"
 KEY_RIGHT = "'d'"
 
+
 class GameGrid(Frame):
     def __init__(self, is_ai_game=False, seed = None, showGUI = True):
         if seed is None:
             seed = [ random.choice(game_logic.all_directions) for i in range(17) ]
-        self.game_model = game_logic.GameModel(seed)
+        self.game_model = GameModel(seed)
         self.GUImode = showGUI
 
         self.endless_mode = True
@@ -104,20 +106,21 @@ class GameGrid(Frame):
         self.redraw()
 
     def ai_move(self, direction):
-        mat,changed = self.game_model.do_swipe(direction)
+        old_mat = self.game_model.mat
+        new_mat = self.game_model.do_swipe(direction)
 
         if self.GUImode:
             self.redraw()
-        return changed
+        return old_mat != new_mat
 
     def redraw(self):
 
         self.update_grid_cells()
 
         status_text = ''
-        if game_logic.game_state(self.game_model.mat, self.endless_mode)=='win':
+        if game_state(self.game_model.mat, self.endless_mode)=='win':
             status_text += "You Win!\n"
-        if game_logic.game_state(self.game_model.mat, self.endless_mode)=='lose':
+        if game_state(self.game_model.mat, self.endless_mode)=='lose':
             status_text += "Game Over.\n"
         status_text += 'Score: ' + str(self.calc_score())
         self.scoreLabel.configure(text = status_text)
@@ -136,8 +139,30 @@ class GameGrid(Frame):
         return game_logic.score(self.game_model.mat)
 
     def game_over(self):
-        if game_logic.game_state(self.game_model.mat, self.endless_mode)=='not over': return False
+        if game_state(self.game_model.mat, self.endless_mode)=='not over': return False
         else: return True
+
+def game_state(mat, endless_mode = True):
+    if not endless_mode:
+        for i in range(len(mat)):
+            for j in range(len(mat[0])):
+                if mat[i][j]==2048:
+                    return 'win'
+    for i in range(len(mat)-1): #intentionally reduced to check the row on the right and below
+        for j in range(len(mat[0])-1): #more elegant to use exceptions but most likely this will be their solution
+            if mat[i][j]==mat[i+1][j] or mat[i][j+1]==mat[i][j]:
+                return 'not over'
+    for i in range(len(mat)): #check for any zero entries
+        for j in range(len(mat[0])):
+            if mat[i][j]==0:
+                return 'not over'
+    for k in range(len(mat)-1): #to check the left/right entries on the last row
+        if mat[len(mat)-1][k]==mat[len(mat)-1][k+1]:
+            return 'not over'
+    for j in range(len(mat)-1): #check up/down entries on last column
+        if mat[j][len(mat)-1]==mat[j+1][len(mat)-1]:
+            return 'not over'
+    return 'lose'
 
 if __name__ == '__main__':
     gamegrid = GameGrid()
