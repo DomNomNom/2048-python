@@ -17,13 +17,16 @@ import random
 import puzzle
 import game_logic
 
+from collections import defaultdict
+
 def initializeGame(seed = None, showGUI = True):
     return puzzle.GameGrid(is_ai_game=True, seed = seed, showGUI = showGUI)
 
-def printSummary(results):
-    results.sort(key = lambda x: x["Nmoves"], reverse=True)
+def printSummary(resultsDict):
+    results = list(resultsDict.items())
+    results.sort(key = lambda x: x[1]["Nmoves"], reverse=True)
     header = ["Algorithm name", "Score", "moves"]
-    lines = [ [result["algorithm"], result["score"], result["Nmoves"]] for result in results ]
+    lines = [ [result[0], result[1]["score"], result[1]["Nmoves"]] for result in results ]
     print(tabulate.tabulate(lines, header, tablefmt="grid"))
 
 def main(argv):
@@ -35,6 +38,7 @@ def main(argv):
     parser.add_argument(       "--sleep",       default = 0,                          help = "time to wait between moves [s].")
     parser.add_argument( "-s", "--seed",        default = None,                       help = "Set seed ot fixed value.")
     parser.add_argument( "-a", "--algorithm",   default = "example",                  help = "which algorithms to run. multiple algorithms can be split by ','.")
+    parser.add_argument( "-r", "--runs",        default = 1,                          help = "How many games we run per algorithm. Scores are accumulated.")
     args = parser.parse_args(argv)
 
     if args.debug:
@@ -43,55 +47,58 @@ def main(argv):
     else:
         logging.basicConfig(level=logging.INFO)
 
-    results = []
+    results = defaultdict(lambda: {'score': 0, 'Nmoves': 0})  # algorithm name -> {'score': 4, 'Nmoves', 2}
 
     seed = args.seed
     if not seed:
         seed = [ random.choice(game_logic.all_directions) for i in range(17) ]
 
+    args.runs = int(args.runs)
 
+    for runIndex in range(args.runs):
+        for algorithm in args.algorithm.split(","):
 
-    for algorithm in args.algorithm.split(","):
+            logging.debug("Initializing game")
+            gamegrid = initializeGame(seed = seed, showGUI = args.gui)
 
-        logging.debug("Initializing game")
-        gamegrid = initializeGame(seed = seed, showGUI = args.gui)
+            logging.debug("loading algorithm " + algorithm)
+            alg = importlib.import_module("algorithms."+algorithm)
 
-        logging.debug("loading algorithm " + algorithm)
-        alg = importlib.import_module("algorithms."+algorithm)
-
-        logging.debug("starting loop")
-        done = False
-        Nmoves = 0
-        NnoMoves = 0
-        while not done:
-            logging.debug("Getting next move from algorithm")
-            move = alg.get_next_move(gamegrid.game_model.mat)
-            changed = gamegrid.ai_move(move)
-            if not changed:
-                done = True
-                continue
-
-            Nmoves += 1
+            logging.debug("starting loop")
+            done = False
+            Nmoves = 0
             NnoMoves = 0
+            while not done:
+                logging.debug("Getting next move from algorithm")
+                move = alg.get_next_move(gamegrid.game_model.mat)
+                changed = gamegrid.ai_move(move)
+                if not changed:
+                    done = True
+                    continue
 
-            time.sleep(float(args.sleep))
+                Nmoves += 1
+                NnoMoves = 0
 
-            # update game grid
-            if args.gui:
-                gamegrid.update()
-            if args.ascii:
-                print("status: (Score = {})".format(gamegrid.calc_score()))
-                print(tabulate.tabulate(gamegrid.game_model.mat, tablefmt="grid"))
+                time.sleep(float(args.sleep))
 
-            if gamegrid.game_over():
-                done = True
-                break
+                # update game grid
+                if args.gui:
+                    gamegrid.update()
+                if args.ascii:
+                    print("status: (Score = {})".format(gamegrid.calc_score()))
+                    print(tabulate.tabulate(gamegrid.game_model.mat, tablefmt="grid"))
 
-        score = gamegrid.calc_score()
-        results.append({"algorithm": algorithm, "score": score, "Nmoves": Nmoves})
-        print("GAME OVER. Final score: {:8.0f} after {:5.0f} moves (algorithm: {}).".format(score, Nmoves, algorithm))
+                if gamegrid.game_over():
+                    done = True
+                    break
 
-    printSummary(results)
+            score = gamegrid.calc_score()
+            results[algorithm]['score'] += score
+            results[algorithm]['Nmoves'] += Nmoves
+            print("GAME OVER. Final score: {:8.0f} after {:5.0f} moves (algorithm: {}).".format(score, Nmoves, algorithm))
+
+        printSummary(results)
+
     if args.gui:
         input("Press Enter to terminate.")
 
