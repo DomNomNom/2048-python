@@ -56,9 +56,9 @@ def set_value(matrix, position, value):
 def find_empty_positions(matrix):
     '''
     >>> find_empty_positions( ((0,2,4,4),
-    ...                       (8,2,0,4),
-    ...                       (4,2,2,4),
-    ...                       (8,2,2,4),) )
+    ...                        (8,2,0,4),
+    ...                        (4,2,2,4),
+    ...                        (8,2,2,4),) )
     [(0, 0), (1, 2)]
     '''
     return [

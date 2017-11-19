@@ -17,16 +17,13 @@ import random
 import puzzle
 import game_logic
 
-from collections import defaultdict
-
 def initializeGame(seed = None, showGUI = True):
     return puzzle.GameGrid(is_ai_game=True, seed = seed, showGUI = showGUI)
 
-def printSummary(resultsDict):
-    results = list(resultsDict.items())
-    results.sort(key = lambda x: x[1]["Nmoves"], reverse=True)
+def printSummary(results):
+    results.sort(key = lambda x: x["Nmoves"], reverse=True)
     header = ["Algorithm name", "Score", "moves"]
-    lines = [ [result[0], result[1]["score"], result[1]["Nmoves"]] for result in results ]
+    lines = [ [result["algorithm"], result["score"], result["Nmoves"]] for result in results ]
     print(tabulate.tabulate(lines, header, tablefmt="grid"))
 
 def main(argv):
@@ -40,6 +37,7 @@ def main(argv):
     parser.add_argument( "-a", "--algorithm",   default = "example",                  help = "which algorithms to run. multiple algorithms can be split by ','.")
     parser.add_argument( "-r", "--runs",        default = 1,                          help = "How many games we run per algorithm. Scores are accumulated.")
     args = parser.parse_args(argv)
+    args.runs = int(args.runs)
 
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
@@ -47,21 +45,25 @@ def main(argv):
     else:
         logging.basicConfig(level=logging.INFO)
 
-    results = defaultdict(lambda: {'score': 0, 'Nmoves': 0})  # algorithm name -> {'score': 4, 'Nmoves', 2}
+    algorithms = args.algorithm.split(",")
+    results = [
+        {'algorithm': algorithm, 'score': 0, 'Nmoves': 0}
+        for algorithm in algorithms
+    ]
 
     seed = args.seed
     if not seed:
         seed = [ random.choice(game_logic.all_directions) for i in range(17) ]
 
-    args.runs = int(args.runs)
 
     for runIndex in range(args.runs):
-        for algorithm in args.algorithm.split(","):
+        for result, algorithm in zip(results, algorithms):
 
             logging.debug("Initializing game")
             gamegrid = initializeGame(seed = seed, showGUI = args.gui)
 
             logging.debug("loading algorithm " + algorithm)
+            random.seed(4)
             alg = importlib.import_module("algorithms."+algorithm)
 
             logging.debug("starting loop")
@@ -93,9 +95,11 @@ def main(argv):
                     break
 
             score = gamegrid.calc_score()
-            results[algorithm]['score'] += score
-            results[algorithm]['Nmoves'] += Nmoves
-            print("GAME OVER. Final score: {:8.0f} after {:5.0f} moves (algorithm: {}).".format(score, Nmoves, algorithm))
+            result["score"] += score
+            result["Nmoves"] += Nmoves
+
+            if args.runs <= 1:
+                print("GAME OVER. Final score: {:8.0f} after {:5.0f} moves (algorithm: {}).".format(score, Nmoves, algorithm))
 
         printSummary(results)
 
