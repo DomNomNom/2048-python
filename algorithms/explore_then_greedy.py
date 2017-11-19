@@ -85,28 +85,7 @@ def combine_fill_scores(scores):
     return min(scores) * 0.99 + average * 0.01
 
 
-cache = set()
-cache_hits = 0
-cache_total = 0
-transformers = [
-    lambda m: m[::-1],
-    reverse_each_row,
-    transpose,
-]
-def add_to_cache(matrix):
-    for transformer in transformers:
-        transformed = transformer(matrix)
-        if transformed < matrix:
-            matrix = transformed
-    global cache_hits
-    global cache_total
-    cache_total += 1
-    if matrix not in cache:
-        cache.add(matrix)
-        cache_hits += 1
-
 def get_value_of_move(matrix, direction, max_samples=200):
-    add_to_cache(matrix)
 
     mat = merge(matrix, direction)
     if mat == matrix:
@@ -136,18 +115,11 @@ def get_value_of_move(matrix, direction, max_samples=200):
 
 def get_next_move(starting_matrix):
     """Return one of the dir_ constants from game_logic"""
-    # global cache
-    global cache_hits
-    global cache_total
-    # cache = set()
-    cache_hits = 0
-    cache_total = 0
 
     best_value, best_direction = max(
         (get_value_of_move(starting_matrix, direction), direction)
         for direction in all_directions
     )
 
-    print ('Cache hits: %.6f%%' % (cache_hits / cache_total))
 
     return best_direction
