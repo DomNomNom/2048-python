@@ -13,6 +13,7 @@ import pprint
 import time
 import tabulate
 import random
+import datetime
 
 import puzzle
 import game_logic
@@ -36,6 +37,7 @@ def main(argv):
     parser.add_argument( "-s", "--seed",        default = None,                       help = "Set seed ot fixed value.")
     parser.add_argument( "-a", "--algorithm",   default = "example",                  help = "which algorithms to run. multiple algorithms can be split by ','.")
     parser.add_argument( "-r", "--runs",        default = 1,                          help = "How many games we run per algorithm. Scores are accumulated.")
+    parser.add_argument(       "--replay-dir",  default = None,                       help = "The directory where replays get stored.")
     args = parser.parse_args(argv)
     args.runs = int(args.runs)
 
@@ -51,13 +53,19 @@ def main(argv):
         for algorithm in algorithms
     ]
 
-    seed = args.seed
-    if not seed:
-        seed = [ random.choice(game_logic.all_directions) for i in range(17) ]
 
+    if args.replay_dir:
+        if not os.path.exists(args.replay_dir):
+            os.makedirs(args.replay_dir)
 
     for runIndex in range(args.runs):
+        seed = args.seed
+        if not args.seed:
+            random.seed(time.time())
+            seed = [ random.choice(game_logic.all_directions) for i in range(17) ]
+
         for result, algorithm in zip(results, algorithms):
+            replay = []
 
             logging.debug("Initializing game")
             gamegrid = initializeGame(seed = seed, showGUI = args.gui)
@@ -72,9 +80,18 @@ def main(argv):
             NnoMoves = 0
             while not done:
                 logging.debug("Getting next move from algorithm")
-                move = alg.get_next_move(gamegrid.game_model.mat)
-                changed = gamegrid.ai_move(move)
-                if not changed:
+                old_mat = gamegrid.game_model.mat
+                move = alg.get_next_move(old_mat)
+                gamegrid.ai_move(move)
+                new_mat = gamegrid.game_model.mat
+
+                replay.append((
+                    old_mat,
+                    move,
+                    new_mat,
+                    game_logic.score(new_mat)
+                ))
+                if old_mat == new_mat:
                     done = True
                     continue
 
@@ -101,7 +118,18 @@ def main(argv):
             if args.runs <= 1:
                 print("GAME OVER. Final score: {:8.0f} after {:5.0f} moves (algorithm: {}).".format(score, Nmoves, algorithm))
 
+            # save replay
+            if args.replay_dir:
+                replay_file_name = os.path.join(
+                    args.replay_dir,
+                    '{}-{}.2048-replay-v1'.format(algorithm, datetime.datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S'))
+                )
+                with open(replay_file_name, 'w') as f:
+                    for line in replay:
+                        f.write(repr(line) + '\n')
+
         printSummary(results)
+
 
     if args.gui:
         input("Press Enter to terminate.")
