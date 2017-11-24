@@ -36,6 +36,9 @@ def new_matrix(n=4):
     '''
     return tuple( tuple( 0 for i in range(n) ) for j in range(n) )
 
+def get_value(matrix, position):
+    return matrix[position[0]][position[1]]
+
 def set_value(matrix, position, value):
     '''
     Returns a new state matrix with the value being set at the position
